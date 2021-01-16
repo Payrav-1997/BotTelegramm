@@ -13,7 +13,7 @@ namespace BotTelegramm
 {
     public partial class MainForm : Form
     {
-        private string token = "1594744576:AAGvChKli_oqKZ8TMiKirvEZ8gWz6RH7H_k";
+        private string token = "1420711938:AAHpHyW0n7hhSRSqxU2xGUzOiTc3TUVjHL8";
         private string BaleUrl = "https://api.telegram.org/bot";
 
         WebClient client;
@@ -27,7 +27,8 @@ namespace BotTelegramm
         {
             client = new WebClient();
             // InitProxy();
-            string s =  client.DownloadString(BaleUrl + token+"/getUpdates");
+            string s =  client.DownloadString(BaleUrl + token+ "/getUpdates?offset=851444544");
+            TelegrammClass
             textBoxLog.Text = s;
 
         }
