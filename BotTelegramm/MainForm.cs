@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
+﻿using Newtonsoft.Json;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace BotTelegramm
@@ -26,10 +19,10 @@ namespace BotTelegramm
         private void Init()
         {
             client = new WebClient();
-            // InitProxy();
             string s =  client.DownloadString(BaleUrl + token+ "/getUpdates?offset=851444544");
-            TelegrammClass
+            TelegrammMessage telegrammMessage = JsonConvert.DeserializeObject<TelegrammMessage>(s);
             textBoxLog.Text = s;
+            // InitProxy();
 
         }
         //Соединение через proxy Сервер..
