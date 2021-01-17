@@ -39,7 +39,7 @@ namespace BotTelegramm
     public class Result
     {
         /// <summary>
-        /// Ид для обновления
+        /// Идентификатор сообщения
         /// </summary>
         public int update_id { get; set; }
         /// <summary>
@@ -51,15 +51,24 @@ namespace BotTelegramm
     public class Message
     {
         /// <summary>
-        ///Ид Сообщения 
+        ///Id Сообщения 
         /// </summary>
         public int message_id { get; set; }
         /// <summary>
-        /// От кому сообщения
+        /// От кого сообщения
         /// </summary>
         public From from { get; set; }
+        /// <summary>
+        /// Описание чата
+        /// </summary>
         public Chat chat { get; set; }
+        /// <summary>
+        /// Дата в формате юникс
+        /// </summary>
         public int date { get; set; }
+        /// <summary>
+        /// Текст сообщения
+        /// </summary>
         public string text { get; set; }
         public Entity[] entities { get; set; }
     }
@@ -76,7 +85,7 @@ namespace BotTelegramm
     public class Chat
     {
         /// <summary>
-        /// Id Пользователя
+        /// Иденитификатор чата
         /// </summary>
         public int id { get; set; }
         /// <summary>
