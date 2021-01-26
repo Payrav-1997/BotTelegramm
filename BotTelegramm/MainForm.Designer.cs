@@ -29,7 +29,9 @@ namespace BotTelegramm
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.textBoxLog = new System.Windows.Forms.TextBox();
+            this.timerGetUpdates = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
             // textBoxLog
@@ -42,7 +44,11 @@ namespace BotTelegramm
             this.textBoxLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBoxLog.Size = new System.Drawing.Size(652, 479);
             this.textBoxLog.TabIndex = 0;
-           // this.textBoxLog.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
+            // 
+            // timerGetUpdates
+            // 
+            this.timerGetUpdates.Interval = 1000;
+            this.timerGetUpdates.Tick += new System.EventHandler(this.timerGetUpdates_Tick);
             // 
             // MainForm
             // 
@@ -53,7 +59,7 @@ namespace BotTelegramm
             this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "ЛогБотаТелеграмм";
-         //   this.Load += new System.EventHandler(this.MainForm_Load);
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainForm_FormClosed);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -62,6 +68,7 @@ namespace BotTelegramm
         #endregion
 
         private System.Windows.Forms.TextBox textBoxLog;
+        public System.Windows.Forms.Timer timerGetUpdates;
     }
 }
 
