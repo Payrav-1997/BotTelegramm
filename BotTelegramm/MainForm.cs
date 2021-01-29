@@ -1,8 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿
+using Newtonsoft.Json;
 using System;
 using System.Collections.Specialized;
 using System.IO;
 using System.Net;
+using System.Text;
 using System.Windows.Forms;
 
 namespace BotTelegramm
@@ -11,7 +13,7 @@ namespace BotTelegramm
     {
         private string token = "1420711938:AAHpHyW0n7hhSRSqxU2xGUzOiTc3TUVjHL8";
         private string BaseUrl = "https://api.telegram.org/bot";
-        private long LastUpdateID = 0; 
+        private long LastUpdateID = 0;
         private string fileLog = "BotLog.log";
 
         WebClient client;
@@ -26,24 +28,24 @@ namespace BotTelegramm
             client = new WebClient();
             WriteLog("Авторизация....");
             timerGetUpdates.Enabled = true;
-            
+
             // InitProxy();
 
         }
         //Соединение через proxy Сервер..
         private void InitProxy()
         {
-            WebProxy proxy = new WebProxy("192.168.0.1",8080);
+            WebProxy proxy = new WebProxy("192.168.0.1", 8080);
             //Отпавляет данные 
             proxy.Credentials = new NetworkCredential("admin", "pass");
             client.Proxy = proxy;
         }
 
-        private void SendMessage(long chat_id,string message)
+        private void SendMessage(long chat_id, string message)
         {
             string address = BaseUrl + token + "/sendMessage";
             NameValueCollection collection = new NameValueCollection();
-            collection.Add("chat_id",chat_id.ToString());
+            collection.Add("chat_id", chat_id.ToString());
             collection.Add("text", message);
             client.UploadValues(address, collection);
         }
@@ -59,28 +61,33 @@ namespace BotTelegramm
             if (!telegrammMessage.ok || telegrammMessage.result.Length == 0) return;
             foreach (Result result in telegrammMessage.result)
             {
+                if (result == null || result.message == null)
+                    continue;
+
                 LastUpdateID = result.update_id;
+                WriteLog(result.message.from.first_name + "(" + result.message.from.username + "): "  + result.message.text);
                 SendAnswer(result.message.chat.id, result.message.text);
-                WriteLog(result.message.from.first_name + "(" + result.message.from.username + "): " + result.message.text + Environment.NewLine);
-            
+               
             }
-            
+
         }
-        private void SendAnswer(long chat_id,string message)
+        private void SendAnswer(long chat_id, string message)
         {
             string answer = "";
             switch (message.ToLower())
             {
                 case "/start": answer = "Я твой бот,знаешь что я умею? /help"; break;
-                case "лог111": answer = RetLog();break;
-                case "/help": answer = 
+                case "лог111": answer = RetLog(); break;
+                case "скриншот111": SendPrintScreen(chat_id); return;
+                case "/help": answer =
  @"Добро пожаловать в помощь нашего телеграмм Бота.
 Ниже представлены все поддерживаемые команды
 
 
-/start - самое начало!
-/help  - помощь
-Лог    - логи";break;
+/start   - самое начало!
+/help    - помощь
+Лог      - логи
+Скриншот - получить скриншот"; break;
 
                 default: answer = "Вы мне написали  " + "" + message + ',' + "но я не знаю что ответит :(";
                     break;
@@ -91,7 +98,7 @@ namespace BotTelegramm
         {
             text = DateTime.Now + " " + text + Environment.NewLine;
             textBoxLog.Text += text;
-            File.AppendAllText(fileLog,text);
+            File.AppendAllText(fileLog, text);
 
 
         }
@@ -106,12 +113,84 @@ namespace BotTelegramm
             if (File.Exists(fileLog))
             {
                 string[] readingFileLog = File.ReadAllLines(fileLog);
-                foreach (string log in readingFileLog)
+                int fileLogLength = (readingFileLog.Length - 10) < 0 ? 0 : (readingFileLog.Length - 10);
+                for (int i = fileLogLength; i < readingFileLog.Length; i++)
                 {
-                    answer += log + Environment.NewLine;
+                    answer += readingFileLog[i] + Environment.NewLine;
                 }
             }
             return answer;
+        }
+
+        private void HttpUploadFile(string url, string file, string paramName, string contentType, NameValueCollection nvc)
+        {
+            string boundary = "----------------------------" + DateTime.Now.Ticks.ToString("x");
+            byte[] boundaryByte = Encoding.ASCII.GetBytes("\r\n--" + boundary + "\r\n");
+            HttpWebRequest wr = (HttpWebRequest)WebRequest.Create(url);
+            wr.ContentType = "multipart/form-data; boundary=" + boundary;
+            wr.Method = "POST";
+            wr.KeepAlive = true;
+            wr.Credentials = CredentialCache.DefaultCredentials;
+
+            Stream rs = wr.GetRequestStream();
+
+            string formDataTemplate = "Content-Disposition: form-data; name=\"{0}\"\r\n\r\n{1}";
+            foreach (string key in nvc.Keys)
+            { 
+                rs.Write(boundaryByte, 0, boundaryByte.Length);
+                string formitem = string.Format(formDataTemplate, key, nvc[key]);
+                byte[] formitembytes = Encoding.UTF8.GetBytes(formitem);
+                rs.Write(formitembytes, 0, formitembytes.Length);
+            }
+            rs.Write(boundaryByte, 0, boundaryByte.Length);
+
+            string headerTemplate = "Content-Disposition: form-data; name=\"{0}\"; filename =\"{1}\"\r\nContent-Type:{2}\r\n\r\n";
+            string header = string.Format(headerTemplate, paramName,file, contentType);
+            byte[] headerByte = Encoding.UTF8.GetBytes(header);
+            rs.Write(headerByte, 0, headerByte.Length);
+
+            FileStream fs = new FileStream(file, FileMode.Open, FileAccess.Read);
+
+                byte[] buffer = new byte[4096];
+            int byteRead = 0;
+            while((byteRead = fs.Read(buffer, 0, buffer.Length))!= 0){
+                rs.Write(buffer, 0, buffer.Length);
+            }
+            fs.Close();
+
+            byte[] trailer = Encoding.ASCII.GetBytes("\r\n--" + boundary + "--r\n");
+            rs.Write(trailer, 0, trailer.Length);
+            rs.Close();
+
+            WebResponse wresp = null;
+            try
+            {
+                wresp = wr.GetResponse();
+                Stream stream = wresp.GetResponseStream();
+                StreamReader reader = new StreamReader(stream);
+                WriteLog("Файл" + file + "ответ отправлен на сервер,ответ от сервера: " + reader.ReadToEnd());
+            }
+            catch (Exception ex)
+            {
+                WriteLog("Ошибка при отправки файла на сервер: " + ex.Message); 
+                if(wresp != null)
+                {
+                    wresp.Close();
+                    wresp = null;
+                }
+            }
+            finally
+            {
+                wr = null;
+            }
+           
+        }
+        private void SendPrintScreen(long chat_id)
+        {
+            string address = BaseUrl + token + "/sendPhoto";
+            NameValueCollection nvc = new NameValueCollection();
+            nvc.Add("chat_id", chat_id.ToString());
+            HttpUploadFile(address, "Screenshot_1.png", "photo", "image/png", nvc);
         }
     }
 }
