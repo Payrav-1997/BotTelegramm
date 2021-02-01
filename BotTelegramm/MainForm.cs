@@ -270,7 +270,23 @@ namespace BotTelegramm
             Bitmap screen = new Bitmap(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
             Graphics gr = Graphics.FromImage(screen as Image);
             gr.CopyFromScreen(0, 0, 0, 0, screen.Size);
-            return screen;
+            return ResizeImg(screen,2);
+        }
+        private Bitmap ResizeImg(Bitmap bitmap,int newWidth,int newHidh)
+        {
+            Bitmap result = new Bitmap(newWidth, newHidh);
+            using(Graphics graphics = Graphics.FromImage(result as Image))
+            {
+                graphics.InterpolationMode =System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                graphics.DrawImage(bitmap, 0, 0, newWidth, newHidh);
+                graphics.Dispose();
+            }
+            return result;
+        }
+
+        private Bitmap ResizeImg(Bitmap bitmap,int count)
+        {
+            return ResizeImg(bitmap, bitmap.Width / count, bitmap.Width / count);
         }
     }
 }
