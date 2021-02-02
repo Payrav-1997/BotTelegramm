@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -11,14 +12,21 @@ using System.Windows.Forms;
 
 namespace BotTelegramm
 {
+    public enum BotState
+    {
+        Wait,
+        KillProc,
+        StartProc
+
+    }
     public partial class MainForm : Form
     {
         private string token = "1420711938:AAHpHyW0n7hhSRSqxU2xGUzOiTc3TUVjHL8";
         private string BaseUrl = "https://api.telegram.org/bot";
         private long LastUpdateID = 0;
         private string fileLog = "BotLog.log";
-
         WebClient client;
+        BotState botState = BotState.Wait;
 
         public MainForm()
         {
@@ -67,8 +75,36 @@ namespace BotTelegramm
                     continue;
 
                 LastUpdateID = result.update_id;
-                WriteLog(result.message.from.first_name + "(" + result.message.from.username + "): "  + result.message.text);
-                SendAnswer(result.message.chat.id, result.message.text);
+                WriteLog(result.message.from.first_name + "(" + result.message.from.username + "): " + result.message.text);
+                switch (botState)
+                {
+                    
+                    case BotState.KillProc:
+                        if (CloseProcess(result.message.text))
+                        {
+                            SendMessage(result.message.chat.id, "Процесс закрыт");
+                            WriteLog("Закрыт процесс " + result.message.text);
+                        }
+                        else
+                        {
+                            SendMessage(result.message.chat.id, "Такого процесса нет!");
+                        }
+                        break;
+                    case BotState.StartProc:
+                        if (StartProcess(result.message.text))
+                        {
+                            SendMessage(result.message.chat.id, "Приложение запущен");
+                            WriteLog("Запуск приложение" + result.message.text);
+                        }
+                        else
+                        {
+                            SendMessage(result.message.chat.id, "Такого приложение нет!");
+                        }
+                        break;
+                    default: SendAnswer(result.message.chat.id, result.message.text);
+                        break;
+                }
+               
                
             }
 
@@ -81,7 +117,10 @@ namespace BotTelegramm
             {
                 case "/start": answer = "Я твой бот,знаешь что я умею? /help"; break;
                 case "лог111": answer = RetLog(); break;
-                case "скриншот001": SendPrintScreen(chat_id); return;
+                case "скриншот": SendPrintScreen(chat_id); return;
+                case "процесс2": answer = GetMyProcces();break;
+                case "процесс_закрыт2": answer = GetMyProcces()  +  "\r\nКакой?"; botState = BotState.KillProc; break;
+                case "процесс_запустить2": answer ="Какой?"; botState = BotState.StartProc; break;
                 case "/help": answer =
  @"Добро пожаловать в помощь нашего телеграмм Бота.
 Ниже представлены все поддерживаемые команды
@@ -90,7 +129,8 @@ namespace BotTelegramm
 /start   - самое начало!
 /help    - помощь
 Лог      - логи
-Скриншот - получить скриншот"; break;
+Скриншот - получить скриншот
+Процесс  - получить список процессов"; break;
 
                 default: answer = "Вы мне написали  " + "" + message + ',' + "но я не знаю что ответит :(";
                     break;
@@ -288,5 +328,47 @@ namespace BotTelegramm
         {
             return ResizeImg(bitmap, bitmap.Width / count, bitmap.Width / count);
         }
+        private string GetMyProcces()
+        {
+            Process[] processList = Process.GetProcesses();
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("Список процессов:");
+            stringBuilder.AppendLine(new string('=', 25));
+
+            foreach (Process process in processList)
+            {
+                if (!string.IsNullOrEmpty(process.MainWindowTitle))
+                    
+                stringBuilder.AppendLine(process.StartTime + ": " + process.ProcessName + " - " + process.MainWindowTitle);
+            }
+            stringBuilder.AppendLine(new string('=', 25));
+            return stringBuilder.ToString();
+        }
+        private bool CloseProcess(string nameProc)
+        {
+            botState = BotState.Wait;
+            Process[] processList = Process.GetProcesses();
+            foreach (Process process in processList)
+            {
+                if (process.ProcessName == nameProc)
+                {
+                     Process.GetProcessesByName(nameProc)[0].Kill();
+                     return true;
+                }
+                   
+            }
+            return false;
+        }
+        private bool StartProcess(string path)
+        {
+            botState = BotState.Wait;
+            if (File.Exists(path))
+            {
+                Process.Start(path);
+                return true;
+            }
+            return false;
+        }
     }
+
 }
